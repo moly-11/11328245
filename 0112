@@ -1,0 +1,81 @@
+import pygame
+import sys
+import random
+
+# 初始化 Pygame
+pygame.init()
+
+# 設定遊戲畫面大小
+WIDTH, HEIGHT = 600, 400
+BLOCK_SIZE = 20
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("貪吃蛇遊戲")
+
+# 設定顏色
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+WHITE = (255, 255, 255)
+
+# 初始化蛇和食物
+snake = [(100, 100), (80, 100), (60, 100)]
+snake_dir = (BLOCK_SIZE, 0)
+food = (random.randint(0, (WIDTH - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE,
+        random.randint(0, (HEIGHT - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE)
+
+# 設定時鐘
+clock = pygame.time.Clock()
+
+# 遊戲分數
+score = 0
+
+# 遊戲主迴圈
+running = True
+while running:
+    # 處理事件
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # 控制蛇的方向
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_UP] and snake_dir != (0, BLOCK_SIZE):
+        snake_dir = (0, -BLOCK_SIZE)
+    if keys[pygame.K_DOWN] and snake_dir != (0, -BLOCK_SIZE):
+        snake_dir = (0, BLOCK_SIZE)
+    if keys[pygame.K_LEFT] and snake_dir != (BLOCK_SIZE, 0):
+        snake_dir = (-BLOCK_SIZE, 0)
+    if keys[pygame.K_RIGHT] and snake_dir != (-BLOCK_SIZE, 0):
+        snake_dir = (BLOCK_SIZE, 0)
+
+    # 移動蛇
+    new_head = (snake[0][0] + snake_dir[0], snake[0][1] + snake_dir[1])
+    snake = [new_head] + snake[:-1]
+
+    # 吃食物
+    if snake[0] == food:
+        snake.append(snake[-1])  # 增加蛇的長度
+        food = (random.randint(0, (WIDTH - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE,
+                random.randint(0, (HEIGHT - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE)
+        score += 1
+
+    # 碰撞檢測（牆壁或自己的身體）
+    if (snake[0][0] < 0 or snake[0][0] >= WIDTH or
+            snake[0][1] < 0 or snake[0][1] >= HEIGHT or
+            snake[0] in snake[1:]):
+        print(f"遊戲結束！你的分數是：{score}")
+        running = False
+
+    # 繪製遊戲畫面
+    screen.fill(BLACK)  # 填充背景色
+    for segment in snake:
+        pygame.draw.rect(screen, GREEN, (*segment, BLOCK_SIZE, BLOCK_SIZE))
+    pygame.draw.rect(screen, RED, (*food, BLOCK_SIZE, BLOCK_SIZE))
+
+    # 更新畫面
+    pygame.display.flip()
+    clock.tick(10)  # 控制遊戲速度
+
+# 結束遊戲
+pygame.quit()
+sys.exit()
