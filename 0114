@@ -1,0 +1,130 @@
+import pygame
+import sys
+import random
+import math
+
+# 初始化 Pygame
+pygame.init()
+
+# 設定遊戲畫面大小
+WIDTH, HEIGHT = 800, 600
+BLOCK_SIZE = 20
+EDGE_BUFFER = 2 * BLOCK_SIZE  # 食物距離邊緣的緩衝區
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("多蛇貪吃蛇遊戲")
+
+# 設定顏色
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+WHITE = (255, 255, 255)
+GRAY = (150, 150, 150)
+COLORS = [(0, 255, 0), (0, 200, 0), (0, 150, 0), (0, 100, 0)]  # 美化的蛇顏色
+
+# 初始化蛇和食物
+NUM_SNAKES = 3
+snakes = [
+    {
+        "body": [(WIDTH // 2 + i * BLOCK_SIZE, HEIGHT // 2) for i in range(5)],  # 安全初始位置
+        "dir": (BLOCK_SIZE, 0),
+        "color_index": 0,
+        "is_player": i == 0  # 第一條蛇為玩家操作
+    }
+    for i in range(NUM_SNAKES)
+]
+
+NUM_FOOD = 10
+food = []
+
+# 隨機生成食物
+def generate_food():
+    while len(food) < NUM_FOOD:
+        x = random.randint(EDGE_BUFFER // BLOCK_SIZE, (WIDTH - EDGE_BUFFER) // BLOCK_SIZE) * BLOCK_SIZE
+        y = random.randint(EDGE_BUFFER // BLOCK_SIZE, (HEIGHT - EDGE_BUFFER) // BLOCK_SIZE) * BLOCK_SIZE
+        if all((x, y) not in snake["body"] for snake in snakes):
+            food.append((x, y))
+
+generate_food()
+
+# 設定時鐘
+clock = pygame.time.Clock()
+
+# 遊戲分數
+scores = [0] * NUM_SNAKES
+game_over = False
+
+# 短暫的遊戲開始緩衝期
+buffer_ticks = 20  # 遊戲開始後的緩衝幀數
+
+# 遊戲主迴圈
+while True:
+    # 處理事件
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        elif event.type == pygame.MOUSEBUTTONDOWN and not game_over:
+            # 滑鼠點擊控制蛇的方向（控制第一條蛇）
+            mouse_x, mouse_y = event.pos
+            snake_x, snake_y = snakes[0]["body"][0]
+            dx, dy = mouse_x - snake_x, mouse_y - snake_y
+            angle = math.atan2(dy, dx)
+            snakes[0]["dir"] = (BLOCK_SIZE * round(math.cos(angle)), BLOCK_SIZE * round(math.sin(angle)))
+
+    if not game_over:
+        # 每條蛇移動
+        for snake in snakes:
+            new_head = (snake["body"][0][0] + snake["dir"][0], snake["body"][0][1] + snake["dir"][1])
+            snake["body"] = [new_head] + snake["body"][:-1]
+
+            # 檢查蛇是否吃到食物
+            for f in food:
+                if snake["body"][0] == f:
+                    food.remove(f)
+                    generate_food()
+                    snake["body"].append(snake["body"][-1])  # 增加蛇長度
+                    snake["color_index"] = (snake["color_index"] + 1) % len(COLORS)
+                    scores[snakes.index(snake)] += 1
+
+            # 碰撞檢測（僅檢查玩家操作的蛇，並在緩衝期後生效）
+            if snake["is_player"] and buffer_ticks <= 0:
+                if (snake["body"][0][0] < 0 or snake["body"][0][0] >= WIDTH or
+                        snake["body"][0][1] < 0 or snake["body"][0][1] >= HEIGHT or
+                        snake["body"][0] in snake["body"][1:]):
+                    print(f"玩家蛇撞牆或撞到自己，遊戲結束！分數：{scores[snakes.index(snake)]}")
+                    game_over = True
+
+        # 遞減緩衝幀數
+        if buffer_ticks > 0:
+            buffer_ticks -= 1
+
+    # 繪製遊戲畫面
+    screen.fill(BLACK)  # 填充背景色
+
+    # 繪製蛇
+    for snake in snakes:
+        for i, segment in enumerate(snake["body"]):
+            color = COLORS[(snake["color_index"] + i) % len(COLORS)]
+            pygame.draw.rect(screen, color, (*segment, BLOCK_SIZE, BLOCK_SIZE))
+
+    # 繪製食物
+    for f in food:
+        pygame.draw.rect(screen, RED, (*f, BLOCK_SIZE, BLOCK_SIZE))
+
+    # 如果遊戲結束，顯示提示文字
+    if game_over:
+        font = pygame.font.SysFont(None, 48)
+        text = font.render("Game Over! Press any key to quit.", True, WHITE)
+        text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        screen.blit(text, text_rect)
+
+    # 更新畫面
+    pygame.display.flip()
+    clock.tick(10)  # 控制遊戲速度
+
+    # 如果遊戲結束，等待玩家按下按鍵退出
+    if game_over:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or event.type == pygame.KEYDOWN:
+                pygame.quit()
+                sys.exit()
