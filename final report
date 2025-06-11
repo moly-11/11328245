@@ -1,0 +1,159 @@
+import tkinter as tk
+from tkinter import messagebox
+import random
+import copy
+
+class SudokuGUI:
+    def __init__(self, master):
+        self.master = master
+        master.title("Sudoku")
+        self.cells = [[None for _ in range(9)] for _ in range(9)]
+        self.board = [[0 for _ in range(9)] for _ in range(9)]
+        self.puzzle = [[0 for _ in range(9)] for _ in range(9)]
+        self.create_grid()
+        self.create_buttons()
+        self.generate_puzzle()
+        self.set_board(readonly=True)
+
+    def create_grid(self):
+        for i in range(9):
+            for j in range(9):
+                entry = tk.Entry(self.master, width=2, font=('Arial', 18), justify='center')
+                entry.grid(row=i, column=j, padx=2, pady=2)
+                self.cells[i][j] = entry
+
+    def create_buttons(self):
+        solve_btn = tk.Button(self.master, text="Solve", command=self.solve)
+        solve_btn.grid(row=9, column=0, columnspan=3)
+        clear_btn = tk.Button(self.master, text="Clear", command=self.clear)
+        clear_btn.grid(row=9, column=3, columnspan=3)
+        check_btn = tk.Button(self.master, text="Check", command=self.check)
+        check_btn.grid(row=9, column=6, columnspan=3)
+
+    def get_board(self):
+        for i in range(9):
+            for j in range(9):
+                val = self.cells[i][j].get()
+                self.board[i][j] = int(val) if val.isdigit() else 0
+
+    def set_board(self, readonly=False):
+        for i in range(9):
+            for j in range(9):
+                self.cells[i][j].config(state=tk.NORMAL)
+                if self.puzzle[i][j] != 0:
+                    self.cells[i][j].delete(0, tk.END)
+                    self.cells[i][j].insert(0, str(self.puzzle[i][j]))
+                    if readonly:
+                        self.cells[i][j].config(state='readonly')
+                else:
+                    self.cells[i][j].delete(0, tk.END)
+                    self.cells[i][j].config(state=tk.NORMAL)
+
+    def is_valid(self, row, col, num):
+        for i in range(9):
+            if self.board[row][i] == num or self.board[i][col] == num:
+                return False
+        start_row, start_col = 3 * (row // 3), 3 * (col // 3)
+        for i in range(3):
+            for j in range(3):
+                if self.board[start_row + i][start_col + j] == num:
+                    return False
+        return True
+
+    def solve_sudoku(self, row=0, col=0):
+        if row == 9:
+            return True
+        if col == 9:
+            return self.solve_sudoku(row + 1, 0)
+        if self.board[row][col] != 0:
+            return self.solve_sudoku(row, col + 1)
+        for num in range(1, 10):
+            if self.is_valid(row, col, num):
+                self.board[row][col] = num
+                if self.solve_sudoku(row, col + 1):
+                    return True
+                self.board[row][col] = 0
+        return False
+
+    def solve(self):
+        self.get_board()
+        if self.solve_sudoku():
+            self.set_board(readonly=False)
+            messagebox.showinfo("Sudoku", "Solved!")
+        else:
+            messagebox.showwarning("Sudoku", "No solution found.")
+
+    def clear(self):
+        for i in range(9):
+            for j in range(9):
+                if self.puzzle[i][j] == 0:
+                    self.cells[i][j].config(state=tk.NORMAL)
+                    self.cells[i][j].delete(0, tk.END)
+
+    def check(self):
+        self.get_board()
+        for i in range(9):
+            for j in range(9):
+                num = self.board[i][j]
+                if num != 0:
+                    self.board[i][j] = 0
+                    if not self.is_valid(i, j, num):
+                        messagebox.showerror("Sudoku", f"Invalid number at ({i+1},{j+1})")
+                        self.board[i][j] = num
+                        return
+                    self.board[i][j] = num
+        messagebox.showinfo("Sudoku", "Current board is valid.")
+
+    def generate_full_solution(self):
+        # 產生完整解答
+        def fill(board):
+            for i in range(9):
+                for j in range(9):
+                    if board[i][j] == 0:
+                        nums = list(range(1, 10))
+                        random.shuffle(nums)
+                        for num in nums:
+                            if self.is_valid_for_board(board, i, j, num):
+                                board[i][j] = num
+                                if fill(board):
+                                    return True
+                                board[i][j] = 0
+                        return False
+            return True
+        board = [[0 for _ in range(9)] for _ in range(9)]
+        fill(board)
+        return board
+
+    def is_valid_for_board(self, board, row, col, num):
+        for i in range(9):
+            if board[row][i] == num or board[i][col] == num:
+                return False
+        start_row, start_col = 3 * (row // 3), 3 * (col // 3)
+        for i in range(3):
+            for j in range(3):
+                if board[start_row + i][start_col + j] == num:
+                    return False
+        return True
+
+    def generate_puzzle(self):
+        # 產生完整解答
+        solution = self.generate_full_solution()
+        self.puzzle = [[0 for _ in range(9)] for _ in range(9)]
+        for i in range(9):
+            # 每行或每列隨機選擇3個位置填入
+            if random.choice([True, False]):
+                # 按行
+                idxs = random.sample(range(9), 3)
+                for j in idxs:
+                    self.puzzle[i][j] = solution[i][j]
+            else:
+                # 按列
+                idxs = random.sample(range(9), 3)
+                for j in idxs:
+                    self.puzzle[j][i] = solution[j][i]
+        self.board = copy.deepcopy(self.puzzle)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    gui = SudokuGUI(root)
+    root.mainloop()
